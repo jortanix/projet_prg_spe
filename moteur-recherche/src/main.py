@@ -9,7 +9,7 @@ import praw
 import xmltodict
 
 from Author import Author
-from Document import Document
+from Document import RedditDocument, ArxivDocument
 from Corpus import Corpus
 
 
@@ -65,12 +65,13 @@ for post in posts:
 
     url_post = f"https://www.reddit.com{post.permalink}"
 
-    document = Document(
+    document = RedditDocument(
         titre=titre,
         auteur=auteur,
         date=date,
         url=url_post,
         texte=texte,
+        nb_commentaires=post.num_comments,
     )
 
     documents[identifiant] = document
@@ -156,12 +157,13 @@ try:
                 url_article = lien["@href"]
                 break
 
-        document = Document(
+        document = ArxivDocument(
             titre=titre,
             auteur=auteur,
             date=date,
             url=url_article,
             texte=texte,
+            co_auteurs=noms_auteurs,
         )
 
         documents[identifiant] = document
@@ -198,6 +200,19 @@ for document in documents.values():
 
 print("\nCorpus créé :")
 print(corpus)
+
+if corpus.documents:
+    premier_document = corpus.documents[1]
+
+    print("\nTest du premier document :")
+    print(premier_document)
+    print(f"Type Python : {type(premier_document).__name__}")
+
+    if isinstance(premier_document, RedditDocument):
+        print(
+            f"Nombre de commentaires : "
+            f"{premier_document.get_nb_commentaires()}"
+        )
 
 print("\nCinq documents les plus récents :")
 corpus.show(5)
