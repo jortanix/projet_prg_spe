@@ -3,12 +3,14 @@ import time
 import urllib.parse
 import urllib.request
 import urllib.error
+from pathlib import Path
 
 import praw
 import xmltodict
 
 from Author import Author
 from Document import Document
+from Corpus import Corpus
 
 
 THEME = "artificial intelligence"
@@ -188,6 +190,34 @@ except urllib.error.URLError as erreur:
 # ==================================================
 # Vérifications corpus et auteurs
 # ==================================================
+
+corpus = Corpus("Artificial Intelligence")
+
+for document in documents.values():
+    corpus.add(document)
+
+print("\nCorpus créé :")
+print(corpus)
+
+print("\nCinq documents les plus récents :")
+corpus.show(5)
+
+dossier_data = Path(__file__).resolve().parent.parent / "data"
+dossier_data.mkdir(exist_ok=True)
+
+fichier_corpus = dossier_data / "corpus_objets.tsv"
+
+corpus.save(fichier_corpus)
+print(f"\nCorpus sauvegardé : {fichier_corpus}")
+
+corpus_recharge = Corpus("Artificial Intelligence rechargé")
+corpus_recharge.load(fichier_corpus)
+
+print("Corpus rechargé :")
+print(corpus_recharge)
+
+print("\nCinq documents triés par titre :")
+corpus.show_by_title(5)
 
 docs = textes_reddit + textes_arxiv
 
