@@ -1,3 +1,4 @@
+import datetime
 import time
 import urllib.parse
 import urllib.request
@@ -6,9 +7,25 @@ import urllib.error
 import praw
 import xmltodict
 
+from Author import Author
+from Document import Document
+
 
 THEME = "artificial intelligence"
 TAILLE_DOCS = 10
+
+
+def nettoyer_texte(texte):
+    return " ".join(texte.replace("\n", " ").split())
+
+
+# ==================================================
+# Initialisation des collections
+# ==================================================
+
+documents = {}
+authors = {}
+identifiant = 1
 
 
 # ==================================================
@@ -27,8 +44,8 @@ posts = list(subreddit.hot(limit=TAILLE_DOCS))
 textes_reddit = []
 
 for post in posts:
-    titre = post.title.replace("\n", " ").strip()
-    contenu = post.selftext.replace("\n", " ").strip()
+    titre = nettoyer_texte(post.title)
+    contenu = nettoyer_texte(post.selftext)
 
     texte = titre
 
@@ -37,69 +54,130 @@ for post in posts:
 
     textes_reddit.append(texte)
 
-print(f"\nNombre de posts Reddit collectés : {len(textes_reddit)}")
+    auteur = str(post.author) if post.author is not None else "[deleted]"
 
-for texte in textes_reddit[:5]:
-    print("\n---")
-    print(texte)
+    date = datetime.datetime.fromtimestamp(
+        post.created_utc,
+        tz=datetime.timezone.utc,
+    )
+
+    url_post = f"https://www.reddit.com{post.permalink}"
+
+    document = Document(
+        titre=titre,
+        auteur=auteur,
+        date=date,
+        url=url_post,
+        texte=texte,
+    )
+
+    documents[identifiant] = document
+
+    if auteur not in authors:
+        authors[auteur] = Author(auteur)
+
+    authors[auteur].add(identifiant, document)
+
+    identifiant += 1
+
+print(f"\nNombre de posts Reddit collectés : {len(textes_reddit)}")
 
 
 # ==================================================
 # Acquisition arXiv
 # ==================================================
 
-requete = urllib.parse.quote(
-    "all:artificial AND all:intelligence",
-    safe=":"
-)
+parametres = {
+    "search_query": "all:artificial AND all:intelligence",
+    "start": 0,
+    "max_results": TAILLE_DOCS,
+}
 
-url = (
-    "http://export.arxiv.org/api/query?"
-    f"search_query={requete}"
-    f"&start=0&max_results={TAILLE_DOCS}"
-)
+url = "https://arxiv.org/api/query?" + urllib.parse.urlencode(parametres)
+
+print(f"\nURL arXiv utilisée :\n{url}")
 
 textes_arxiv = []
 
 try:
-    # Pause avant l'appel pour respecter la cadence arXiv.
     time.sleep(3)
 
     requete_http = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "M1 academic project - artificial intelligence corpus"
-        }
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/atom+xml, application/xml, text/xml, */*",
+        },
     )
 
     with urllib.request.urlopen(requete_http, timeout=30) as response:
         data = response.read()
 
     data_dict = xmltodict.parse(data)
-
     entrees = data_dict["feed"].get("entry", [])
 
-    # Une réponse avec un seul article est parfois un dictionnaire.
     if isinstance(entrees, dict):
         entrees = [entrees]
 
     for entree in entrees:
-        titre = entree["title"].replace("\n", " ").strip()
-        resume = entree["summary"].replace("\n", " ").strip()
+        titre = nettoyer_texte(entree["title"])
+        resume = nettoyer_texte(entree["summary"])
 
         texte = f"{titre}. {resume}"
         textes_arxiv.append(texte)
 
-    print(f"\nNombre d'articles arXiv collectés : {len(textes_arxiv)}")
+        auteurs_arxiv = entree.get("author", [])
 
-    for texte in textes_arxiv[:5]:
-        print("\n---")
-        print(texte)
+        if isinstance(auteurs_arxiv, dict):
+            auteurs_arxiv = [auteurs_arxiv]
+
+        noms_auteurs = []
+
+        for auteur_arxiv in auteurs_arxiv:
+            noms_auteurs.append(auteur_arxiv["name"])
+
+        auteur = ", ".join(noms_auteurs)
+
+        date = datetime.datetime.fromisoformat(
+            entree["published"].replace("Z", "+00:00")
+        )
+
+        liens = entree.get("link", [])
+
+        if isinstance(liens, dict):
+            liens = [liens]
+
+        url_article = entree["id"]
+
+        for lien in liens:
+            if lien.get("@rel") == "alternate":
+                url_article = lien["@href"]
+                break
+
+        document = Document(
+            titre=titre,
+            auteur=auteur,
+            date=date,
+            url=url_article,
+            texte=texte,
+        )
+
+        documents[identifiant] = document
+
+        # Chaque article peut avoir plusieurs auteurs.
+        for nom_auteur in noms_auteurs:
+            if nom_auteur not in authors:
+                authors[nom_auteur] = Author(nom_auteur)
+
+            authors[nom_auteur].add(identifiant, document)
+
+        identifiant += 1
+
+    print(f"\nNombre d'articles arXiv collectés : {len(textes_arxiv)}")
 
 except urllib.error.HTTPError as erreur:
     if erreur.code == 429:
         print("\nArXiv limite temporairement les requêtes : HTTP 429.")
-        print("Le programme continue avec les textes Reddit.")
     else:
         print(f"\nErreur HTTP lors de l'appel à arXiv : {erreur.code}")
 
@@ -108,9 +186,31 @@ except urllib.error.URLError as erreur:
 
 
 # ==================================================
-# Corpus texte provisoire
+# Vérifications corpus et auteurs
 # ==================================================
 
 docs = textes_reddit + textes_arxiv
 
-print(f"\nTaille totale du corpus provisoire : {len(docs)} documents")
+print(f"\nTaille totale du corpus texte : {len(docs)} documents")
+print(f"Nombre d'objets Document créés : {len(documents)}")
+print(f"Nombre d'auteurs répertoriés : {len(authors)}")
+
+print("\nCinq premiers auteurs :")
+
+for auteur in list(authors.values())[:5]:
+    print(auteur)
+
+if authors:
+    nom_premier_auteur = next(iter(authors))
+    premier_auteur = authors[nom_premier_auteur]
+
+    tailles_documents = []
+
+    for document in premier_auteur.production.values():
+        tailles_documents.append(len(document.texte))
+
+    taille_moyenne = sum(tailles_documents) / len(tailles_documents)
+
+    print(f"\nStatistiques pour : {premier_auteur.name}")
+    print(f"Nombre de documents : {premier_auteur.nbdocs}")
+    print(f"Taille moyenne : {taille_moyenne:.2f} caractères")
