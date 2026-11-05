@@ -214,6 +214,12 @@ if corpus.documents:
             f"{premier_document.get_nb_commentaires()}"
         )
 
+autre_corpus = Corpus("Test singleton")
+
+print("\nTest Singleton :")
+print(corpus is autre_corpus)
+print(autre_corpus.nom)
+
 print("\nCinq documents les plus récents :")
 corpus.show(5)
 
@@ -259,3 +265,88 @@ if authors:
     print(f"\nStatistiques pour : {premier_auteur.name}")
     print(f"Nombre de documents : {premier_auteur.nbdocs}")
     print(f"Taille moyenne : {taille_moyenne:.2f} caractères")
+
+# ==================================================================
+# Tests de la partie 2
+# ==================================================================
+
+print("\n" + "="*50)
+print("TESTS DE LA PARTIE 2")
+print("="*50)
+
+# Vérifier que le corpus a été correctement initialisé avec les nouvelles fonctionnalités
+print("\n1. Vérification de l'initialisation du corpus :")
+print(f"Nom du corpus : {corpus.nom}")
+print(f"Nombre de documents : {len(corpus.documents)}")
+print(f"Nombre d'auteurs : {len(corpus.authors)}")
+
+# Vérifier que le vocabulaire a été construit
+print("\n2. Vérification du vocabulaire :")
+if hasattr(corpus, 'vocabulary') and corpus.vocabulary:
+    print(f"Vocabulaire construit avec {len(corpus.vocabulary)} termes")
+    print("Premiers termes du vocabulaire :")
+    for i, (term, freq) in enumerate(list(corpus.vocabulary.items())[:10]):
+        print(f"  {term}: {freq}")
+else:
+    print("Erreur: Le vocabulaire n'a pas été construit")
+
+# Vérifier que la matrice a été construite
+print("\n3. Vérification de la matrice Documents × Termes :")
+if hasattr(corpus, 'term_document_matrix') and corpus.term_document_matrix is not None:
+    print(f"Matrice construite avec dimensions : {corpus.term_document_matrix.shape}")
+    print(f"Type de matrice : {type(corpus.term_document_matrix)}")
+else:
+    print("Erreur: La matrice Documents × Termes n'a pas été construite")
+
+# Test de recherche simple
+print("\n4. Test de recherche :")
+try:
+    if len(corpus.documents) > 0:
+        # Prendre le premier document comme référence
+        first_doc_id = list(corpus.documents.keys())[0]
+        first_doc = corpus.documents[first_doc_id]
+        
+        print(f"Recherche dans le document '{first_doc.titre}'...")
+        # Effectuer une recherche simple
+        search_results = corpus.search("artificial", top_k=3)
+        print(f"Résultats de recherche pour 'artificial': {len(search_results)} documents trouvés")
+        
+        for doc_id, score in search_results:
+            if doc_id in corpus.documents:
+                print(f"  Document {doc_id}: '{corpus.documents[doc_id].titre}' (score: {score:.4f})")
+    else:
+        print("Aucun document disponible pour le test de recherche")
+except Exception as e:
+    print(f"Erreur lors du test de recherche: {e}")
+
+# Test de similarité
+print("\n5. Test de similarité entre documents :")
+try:
+    if len(corpus.documents) >= 2:
+        doc1_id = list(corpus.documents.keys())[0]
+        doc2_id = list(corpus.documents.keys())[1]
+        
+        similarity = corpus.get_document_similarity(doc1_id, doc2_id)
+        print(f"Similarité entre documents {doc1_id} et {doc2_id}: {similarity:.4f}")
+    else:
+        print("Pas assez de documents pour tester la similarité")
+except Exception as e:
+    print(f"Erreur lors du test de similarité: {e}")
+
+# Test de termes importants
+print("\n6. Test de récupération des termes importants :")
+try:
+    if len(corpus.documents) > 0:
+        doc_id = list(corpus.documents.keys())[0]
+        important_terms = corpus.get_document_terms(doc_id, top_n=5)
+        print(f"Termes importants pour le document {doc_id}:")
+        for term, score in important_terms:
+            print(f"  {term}: {score:.4f}")
+    else:
+        print("Aucun document disponible pour tester les termes importants")
+except Exception as e:
+    print(f"Erreur lors du test des termes importants: {e}")
+
+print("\n" + "="*50)
+print("FIN DES TESTS DE LA PARTIE 2")
+print("="*50)

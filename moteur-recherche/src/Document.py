@@ -29,6 +29,7 @@ class RedditDocument(Document):
     ):
         super().__init__(titre, auteur, date, url, texte)
         self.nb_commentaires = nb_commentaires
+        self.type = "Reddit"
 
     def get_nb_commentaires(self):
         return self.nb_commentaires
@@ -37,7 +38,10 @@ class RedditDocument(Document):
         self.nb_commentaires = nb_commentaires
 
     def __str__(self):
-        return f"[Reddit] {self.titre}"
+        return self.titre
+
+    def getType(self):
+        return self.type
 
 
 class ArxivDocument(Document):
@@ -52,6 +56,7 @@ class ArxivDocument(Document):
     ):
         super().__init__(titre, auteur, date, url, texte)
         self.co_auteurs = co_auteurs
+        self.type = "arXiv"
 
     def get_co_auteurs(self):
         return self.co_auteurs
@@ -60,4 +65,7 @@ class ArxivDocument(Document):
         self.co_auteurs = co_auteurs
 
     def __str__(self):
-        return f"[arXiv] {self.titre}"
+        return self.titre
+
+    def getType(self):
+        return self.type
