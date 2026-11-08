@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 test_results.csv
 test_results.json
+*.aux
+*.log
+*.out
+*.toc
