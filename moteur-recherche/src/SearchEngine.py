@@ -140,6 +140,48 @@ class SearchEngine:
 
         return {year: terms.most_common(10) for year, terms in trends.items()}
 
+    def evolution_temporelle(self, mot: str, score: str = 'tf_idf') -> List[Tuple[str, float]]:
+        """Évolution de l'importance d'un mot au fil des années.
+
+        Le corpus est découpé par année ; pour chaque année, on calcule
+        l'importance moyenne du mot parmi les documents de cette année :
+        fréquence brute ('freq') ou score TF-IDF moyen ('tf_idf').
+        """
+        if not self.is_initialized or not self.corpus.documents:
+            return []
+
+        tokens = self.corpus.text_analyzer.clean_text(mot)
+        if not tokens:
+            return []
+        cible = tokens[0]
+
+        # Regroupement des couples (doc_id, document) par année
+        par_annee = {}
+        for doc_id, doc in self.corpus.documents.items():
+            par_annee.setdefault(doc.date.year, []).append((doc_id, doc))
+
+        resultat = []
+        for annee in sorted(par_annee):
+            valeurs = []
+
+            for doc_id, doc in par_annee[annee]:
+                freq = self.corpus.text_analyzer.clean_text(doc.texte).count(cible)
+                if freq == 0:
+                    continue
+                if score == 'freq':
+                    valeurs.append(freq)
+                else:
+                    termes = self.corpus.get_document_terms(doc_id, top_n=10)
+                    valeur_tf_idf = dict(termes).get(cible, 0.0)
+                    valeurs.append(valeur_tf_idf)
+
+            if valeurs:
+                resultat.append(
+                    (str(annee), round(float(sum(valeurs) / len(valeurs)), 4))
+                )
+
+        return resultat
+
     def export_results(self, results: List[Tuple[int, float, Dict]],
                       filename: str, format_type: str = 'csv'):
         """Exporte les résultats de recherche en CSV ou JSON."""

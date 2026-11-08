@@ -359,21 +359,13 @@ class Corpus:
             self.authors[document.auteur].add(document_id, document)
 
             self.idDocument = max(self.idDocument, document_id + 1)
-            
-        # Charger le vocabulaire
-        vocab_file = str(fichier).replace('.tsv', '_vocab.txt')
-        try:
-            with open(vocab_file, 'r', encoding='utf-8') as f:
-                self.vocabulary = {}
-                for line in f:
-                    parts = line.strip().split('\t')
-                    if len(parts) == 2:
-                        term, freq = parts
-                        self.vocabulary[term] = int(freq)
-        except FileNotFoundError:
-            # Si le fichier de vocabulaire n'existe pas, reconstruire le vocabulaire
-            all_texts = [doc.texte for doc in self.documents.values()]
-            self.vocabulary = self.text_analyzer.build_vocabulary(all_texts)
-            
+
+        # Reconstruire le vocabulaire et la matrice depuis les textes :
+        # ils sont entièrement dérivables des documents et doivent refléter
+        # le nettoyage courant du TextAnalyzer (stopwords, ponctuation...).
+        all_texts = [doc.texte for doc in self.documents.values()]
+        self.vocabulary = self.text_analyzer.build_vocabulary(all_texts)
+        self._build_term_document_matrix()
+
         # Initialiser le moteur de recherche
         self.initialize_search_engine()
