@@ -2,6 +2,8 @@
 
 Moteur de recherche permettant d'analyser, de structurer et d'interroger un corpus de documents textuels issus de Reddit et d'arXiv.
 
+Dépôt : <https://github.com/jortanix/projet_prg_spe>
+
 ## Structure
 
 ```
