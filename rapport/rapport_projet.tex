@@ -57,7 +57,7 @@
 
 Ce projet porte sur la conception et l'implémentation d'un moteur de recherche capable d'analyser, de structurer et d'interroger un corpus de documents textuels issus de deux sources distinctes : Reddit et arXiv. Il s'appuie sur un modèle orienté objet, un système de scoring TF-IDF calculé manuellement, ainsi qu'une série de fonctionnalités avancées (recherche multi-critères, clustering, recommandations, analyse statistique et export des résultats).
 
-Le travail est organisé en trois parties. La première établit la structure de données (documents, auteurs, corpus avec patron singleton) et l'acquisition des données. La deuxième ajoute l'analyse textuelle et le moteur de recherche basé sur la matrice Documents $\times$ Termes. La troisième, en cours de finalisation, apporte les fonctionnalités avancées et une future interface interactive.
+Le travail est organisé en trois parties. La première établit la structure de données (documents, auteurs, corpus avec patron singleton, fabrique de documents) et l'acquisition des données. La deuxième ajoute l'analyse textuelle, le concordancier et le moteur de recherche basé sur la matrice Documents $\times$ Termes. La troisième enrichit le moteur avec des fonctionnalités avancées (recherche filtrée, Okapi BM25, clustering, recommandations, statistiques, export) et une interface web, complétées par plusieurs bonus.
 
 \section{Spécifications}
 
@@ -72,7 +72,7 @@ L'objectif est de construire un moteur de recherche complet permettant de :
     \item Respecter les contraintes techniques imposées (interdiction de scikit-learn et nltk, calculs effectués manuellement).
 \end{itemize}
 
-Le périmètre de la partie 3 prévoit également une interface graphique sous forme de notebook Jupyter utilisant \texttt{ipywidgets}. Cette interface n'étant pas encore intégrée au moment de la rédaction, elle est présentée dans les perspectives.
+Le périmètre de la partie 3 prévoit également une interface graphique. Une interface web interactive a été implémentée avec \texttt{Streamlit} (\texttt{streamlit run app.py}) ; l'interface notebook Jupyter avec \texttt{ipywidgets}, prévue par l'énoncé, est présentée dans les perspectives.
 
 \section{Analyse}
 
@@ -85,6 +85,7 @@ Le projet est développé en Python 3.x. Les bibliothèques utilisées sont limi
     \item SciPy : matrices creuses (\texttt{csr\_matrix}) et algorithme de clustering K-means ;
     \item Pandas : organisation des données et export en CSV ;
     \item Matplotlib et Seaborn : visualisation des résultats (facultatif) ;
+    \item Streamlit : interface web interactive (\texttt{app.py}) ;
     \item Bibliothèque standard : \texttt{datetime}, \texttt{collections}, \texttt{re}, \texttt{json}.
 \end{itemize}
 
@@ -141,9 +142,9 @@ La classe \texttt{Corpus} centralise la recherche, la construction de la matrice
 Le projet a été réalisé de manière individuelle. Le travail a été décomposé en trois étapes :
 
 \begin{itemize}
-    \item \textbf{Partie 1 -- Structure} : création des classes \texttt{Document}, \texttt{RedditDocument}, \texttt{ArxivDocument}, \texttt{Author} et \texttt{Corpus}, acquisition des données et persistance (sauvegarde en TSV) ;
-    \item \textbf{Partie 2 -- Recherche} : analyse textuelle (tokenization, suppression des mots vides), construction du vocabulaire et de la matrice Documents $\times$ Termes, calcul des scores TF-IDF, recherche et similarité entre documents ;
-    \item \textbf{Partie 3 -- Avancé} : moteur de recherche à filtres et tris, clustering, recommandations, analyse de fréquence, tendances temporelles, statistiques, export CSV/JSON, et (en perspective) interface \texttt{ipywidgets}.
+    \item \textbf{Partie 1 -- Structure} : création des classes \texttt{Document}, \texttt{RedditDocument}, \texttt{ArxivDocument}, \texttt{Author} et \texttt{Corpus}, fabrique de documents, acquisition des données et persistance (sauvegarde en TSV) ;
+    \item \textbf{Partie 2 -- Recherche} : analyse textuelle (tokenization, suppression des mots vides), construction du vocabulaire et de la matrice Documents $\times$ Termes, calcul des scores TF-IDF, recherche, similarité et concordancier ;
+    \item \textbf{Partie 3 -- Avancé} : moteur de recherche à filtres et tris, clustering, recommandations, analyses, statistiques, export CSV/JSON, interface web Streamlit, et fonctions bonus (Okapi BM25, analyse comparative de sous-corpus).
 \end{itemize}
 
 \subsection{Algorithmes spécifiques}
@@ -167,6 +168,14 @@ La pertinence d'un document pour une requête est évaluée en agrégeant les sc
 \subsubsection{Clustering}
 Le clustering repose sur l'algorithme \textbf{K-means} appliqué aux vecteurs de documents issus de la matrice TF-IDF (via SciPy), puis à l'attribution de chaque document au centroïde le plus proche.
 
+\subsubsection{Bonus : Okapi BM25}
+En complément du scoring TF-IDF (cosinus), une mesure \textbf{Okapi BM25} est proposée dans \texttt{search\_bm25}. Le score d'un document $d$ pour une requête est :
+$$BM25(d,q) = \sum_{t \in q} IDF(t)\cdot\frac{f(t,d)\cdot(k_1+1)}{f(t,d)+k_1\left(1-b+b\cdot\frac{|d|}{avgdl}\right)}$$
+avec $IDF(t)=\log\left(1+\frac{N-df(t)+0.5}{df(t)+0.5}\right)$. Les paramètres sont fixés aux valeurs classiques $k_1=1.5$ et $b=0.75$. Ce modèle affine le classement en tenant compte de la longueur des documents et de la saturation de la fréquence de terme.
+
+\subsubsection{Bonus : analyse comparative de sous-corpus}
+La méthode \texttt{analyser\_sous\_corpus} compare deux groupes de documents (par exemple \texttt{Reddit} et \texttt{arXiv}). Chaque groupe est agrégé en un pseudo-document puis un score TF-IDF local est calculé pour chaque terme. Les termes les plus importants de chaque groupe sont alors comparés : les mots communs mettent en évidence le vocabulaire partagé, tandis que les mots \emph{spécifiques} à chaque groupe révèlent les thématiques propres à chaque source. Appliquée au corpus (10 documents Reddit et 10 arXiv), l'analyse fait ressortir des termes spécifiques à arXiv (par ex. \emph{framework}, \emph{xai}, \emph{belief}, \emph{games}) et à Reddit (par ex. \emph{proof}, \emph{conjecture}, \emph{quantum}), le mot \emph{ai} étant commun aux deux sources.
+
 \subsection{Problèmes rencontrés et solutions}
 
 \begin{itemize}
@@ -174,7 +183,8 @@ Le clustering repose sur l'algorithme \textbf{K-means} appliqué aux vecteurs de
     \item \textbf{Efficacité de la matrice} : la matrice Documents $\times$ Termes pouvant être volumineuse et creuse, elle est représentée en \emph{matrice creuse} (SciPy) afin de limiter l'empreinte mémoire.
     \item \textbf{Héritage et polymorphisme} : les deux types de documents partagent un comportement commun ; l'héritage de \texttt{Document} et la redéfinition de \texttt{getType()} évitent la duplication de code.
     \item \textbf{Unicité du corpus} : le patron \emph{singleton} garantit qu'une seule instance de corpus existe à travers l'application.
-    \item \textbf{Caractères accentués} : la gestion de l'encodage UTF-8 (accents français) a nécessité une configuration adaptée de l'environnement Python et des fichiers de sauvegarde.
+    \item \textbf{Caractères accentués} : la gestion de l'encodage UTF-8 (accents français) a nécessité une configuration adaptée de l'environnement Python et des fichiers de sauvegarde ;
+    \item \textbf{Mots vides multilingues} : le corpus étant majoritairement anglophone, la liste de mots vides a dû être complétée par les \emph{stopwords} anglais afin d'éviter que des termes outils (\emph{the}, \emph{and}, \emph{of}\ldots) ne polluent le vocabulaire et l'analyse comparative.
 \end{itemize}
 
 \subsection{Exemple d'utilisation}
@@ -186,7 +196,8 @@ Le fonctionnement du moteur s'illustre par l'enchaînement suivant :
     \item Recherche avancée : la requête est passée avec éventuellement des filtres (auteur, type, période) et un critère de tri (pertinence, date ou auteur) ;
     \item Regroupement des documents similaires en un nombre donné de clusters ;
     \item Obtention de recommandations basées sur la similarité avec un document de référence ;
-    \item Export des résultats de recherche aux formats CSV ou JSON, et consultation de statistiques globales (nombre de documents, termes les plus fréquents, types de documents).
+    \item Export des résultats de recherche aux formats CSV ou JSON, et consultation de statistiques globales (nombre de documents, termes les plus fréquents, types de documents) ;
+    \item Interrogation du moteur à travers l'interface web \texttt{Streamlit}, qui expose la recherche (TF-IDF ou BM25), les filtres, les statistiques et l'analyse comparative.
 \end{enumerate}
 
 \section{Validation}
@@ -218,21 +229,22 @@ Les tests globaux vérifient l'intégration complète du système, c'est-à-dire
 
 \subsection{Évolutions en cours}
 
-Le développement se poursuit dans deux directions principales :
+Les fonctionnalités avancées de la partie 3 (recherche filtrée, clustering, recommandations, statistiques, export) ainsi que plusieurs bonus sont implémentés et intégrés au moteur :
 \begin{itemize}
-    \item l'\textbf{interface graphique} de la partie 3, sous forme de notebook Jupyter avec \texttt{ipywidgets} et barres de progression, permettant d'interroger et de visualiser le corpus de manière interactive ;
-    \item l'enrichissement du \textbf{moteur de recherche} avec de nouvelles fonctionnalités bonus déjà implémentées (filtres, tris, clustering, recommandations, statistiques, export).
+    \item \textbf{Interface web} : une interface \texttt{Streamlit} (\texttt{app.py}) permet d'interroger le corpus sans écrire de code, avec le choix de la mesure de score (TF-IDF ou BM25), un filtre par source et l'affichage des statistiques ;
+    \item \textbf{Okapi BM25} : mesure de score alternative au TF-IDF pour affiner le classement des résultats ;
+    \item \textbf{Analyse comparative} : comparaison des vocabulaires de deux sous-corpus (Reddit vs arXiv).
 \end{itemize}
 
 \subsection{Perspectives d'amélioration}
 
 Les axes d'amélioration envisagés sont :
 \begin{itemize}
+    \item l'interface notebook Jupyter avec \texttt{ipywidgets} et barres de progression, prévue par l'énoncé, en complément de l'interface web ;
     \item le traitement avancé du langage (lemmatisation, stemming) pour améliorer la qualité du vocabulaire ;
     \item l'optimisation des performances sur de grands volumes de données (parallélisation, index inversé) ;
     \item le raffinement du clustering (choix automatique du nombre de clusters, autres métriques de distance) ;
-    \item la prise en charge de formats et de sources de documents supplémentaires ;
-    \item des visualisations avancées et interactives intégrées à l'interface.
+    \item la prise en charge de formats et de sources de documents supplémentaires.
 \end{itemize}
 
 \section{Contraintes techniques}
@@ -247,7 +259,7 @@ Le projet respecte les contraintes imposées :
 
 \section{Conclusion}
 
-Ce projet a permis de concevoir un moteur de recherche complet, structuré autour de principes orientés objet et reposant sur un calcul manuel du TF-IDF. Il intègre un moteur de recherche à filtres et tris ainsi que des fonctionnalités avancées (clustering, recommandations, statistiques et export), tout en respectant les contraintes techniques fixées. La poursuite du travail porte principalement sur l'interface graphique interactive de la partie 3.
+Ce projet a permis de concevoir un moteur de recherche complet, structuré autour de principes orientés objet et reposant sur un calcul manuel du TF-IDF. Il intègre un moteur de recherche à filtres et tris, une interface web, ainsi que des fonctions bonus (Okapi BM25, analyse comparative de sous-corpus), tout en respectant les contraintes techniques fixées. La poursuite du travail porte principalement sur l'interface notebook \texttt{ipywidgets} prévue par l'énoncé.
 
 \section*{Lien vers le dépôt}
 
