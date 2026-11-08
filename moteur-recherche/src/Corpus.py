@@ -1,11 +1,13 @@
 import datetime
+from collections import Counter
+
 import numpy as np
 from scipy import sparse
 
 import pandas as pd
 
 from Author import Author
-from Document import Document
+from Document import Document, RedditDocument, ArxivDocument
 from TextAnalyzer import TextAnalyzer
 
 class Corpus:
@@ -227,20 +229,68 @@ class Corpus:
             f"auteurs={len(self.authors)})"
         )
 
+    def concorde(self, expression, contexte=5):
+        """Construit un concordancier : passages où apparaît l'expression,
+        avec un contexte gauche/droit. Retourne un DataFrame pandas."""
+        import re
+
+        expr = re.compile(re.escape(expression), re.IGNORECASE)
+        lignes = []
+
+        for doc_id, doc in self.documents.items():
+            texte = doc.texte
+            for match in expr.finditer(texte):
+                debut = max(0, match.start() - contexte)
+                fin = min(len(texte), match.end() + contexte)
+                lignes.append({
+                    "document_id": doc_id,
+                    "contexte_gauche": texte[debut:match.start()],
+                    "motif": match.group(0),
+                    "contexte_droit": texte[match.end():fin],
+                })
+
+        return pd.DataFrame(lignes)
+
+    def stats(self, n=10):
+        """Statistiques textuelles : nombre de mots différents et
+        les n mots les plus fréquents du corpus."""
+        compteur = Counter()
+
+        for doc in self.documents.values():
+            compteur.update(self.text_analyzer.clean_text(doc.texte))
+
+        tableau = pd.DataFrame(
+            list(compteur.items()),
+            columns=["mot", "frequence"],
+        )
+        tableau = tableau.sort_values("frequence", ascending=False)
+
+        differences = len(compteur)
+        plus_frequents = tableau.head(n).to_dict("records")
+
+        return {
+            "nb_mots_differents": differences,
+            "plus_frequents": plus_frequents,
+        }
+
     def save(self, fichier):
         lignes = []
 
         for document_id, document in self.documents.items():
-            lignes.append(
-                {
-                    "id": document_id,
-                    "titre": document.titre,
-                    "auteur": document.auteur,
-                    "date": document.date.isoformat(),
-                    "url": document.url,
-                    "texte": document.texte,
-                }
-            )
+            ligne = {
+                "id": document_id,
+                "titre": document.titre,
+                "auteur": document.auteur,
+                "date": document.date.isoformat(),
+                "url": document.url,
+                "texte": document.texte,
+                "type": document.getType(),
+            }
+            if document.getType() == "Reddit":
+                ligne["nb_commentaires"] = document.get_nb_commentaires()
+            elif document.getType() == "arXiv":
+                ligne["co_auteurs"] = ",".join(document.get_co_auteurs())
+            lignes.append(ligne)
 
         dataframe = pd.DataFrame(lignes)
 
@@ -271,13 +321,35 @@ class Corpus:
         for _, ligne in dataframe.iterrows():
             document_id = int(ligne["id"])
 
-            document = Document(
-                titre=ligne["titre"],
-                auteur=ligne["auteur"],
-                date=datetime.datetime.fromisoformat(ligne["date"]),
-                url=ligne["url"],
-                texte=ligne["texte"],
-            )
+            document_type = str(ligne.get("type", "")).strip()
+            if document_type == "Reddit":
+                document = RedditDocument(
+                    titre=ligne["titre"],
+                    auteur=ligne["auteur"],
+                    date=datetime.datetime.fromisoformat(ligne["date"]),
+                    url=ligne["url"],
+                    texte=ligne["texte"],
+                    nb_commentaires=int(ligne.get("nb_commentaires", 0) or 0),
+                )
+            elif document_type == "arXiv":
+                co_auteurs = str(ligne.get("co_auteurs", "") or "").split(",")
+                co_auteurs = [a for a in co_auteurs if a]
+                document = ArxivDocument(
+                    titre=ligne["titre"],
+                    auteur=ligne["auteur"],
+                    date=datetime.datetime.fromisoformat(ligne["date"]),
+                    url=ligne["url"],
+                    texte=ligne["texte"],
+                    co_auteurs=co_auteurs,
+                )
+            else:
+                document = Document(
+                    titre=ligne["titre"],
+                    auteur=ligne["auteur"],
+                    date=datetime.datetime.fromisoformat(ligne["date"]),
+                    url=ligne["url"],
+                    texte=ligne["texte"],
+                )
 
             self.documents[document_id] = document
 

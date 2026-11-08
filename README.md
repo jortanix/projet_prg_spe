@@ -6,15 +6,17 @@ Moteur de recherche permettant d'analyser, de structurer et d'interroger un corp
 
 ```
 moteur-recherche/
-├── src/               # Code source
-│   ├── main.py        # Script principal (collecte des données)
-│   ├── Corpus.py      # Gestion du corpus et de la matrice TF-IDF
-│   ├── Document.py    # Classes Document, RedditDocument, ArxivDocument
-│   ├── Author.py      # Gestion des auteurs
-│   ├── TextAnalyzer.py# Analyse textuelle (tokenisation, vocabulaire)
-│   └── SearchEngine.py# Recherche avancée, clustering, recommandations
-├── tests/             # Scripts de tests
-└── data/              # Fichiers de sauvegarde (format TSV)
+├── src/                 # Code source
+│   ├── main.py          # Script principal (collecte des données)
+│   ├── Corpus.py        # Gestion du corpus, matrice TF-IDF, concordancier
+│   ├── Document.py      # Classes Document, RedditDocument, ArxivDocument
+│   ├── DocumentFactory.py# Fabrique de documents (patron Factory)
+│   ├── Author.py        # Gestion des auteurs
+│   ├── TextAnalyzer.py  # Analyse textuelle (tokenisation, vocabulaire)
+│   └── SearchEngine.py  # Recherche, BM25, clustering, recommandations
+├── app.py               # Interface web Streamlit (bonus)
+├── tests/               # Scripts de tests
+└── data/                # Fichiers de sauvegarde (format TSV)
 ```
 
 ## Fonctionnalités
@@ -23,10 +25,14 @@ moteur-recherche/
 - Analyse textuelle : tokenisation, suppression des mots vides, construction du vocabulaire
 - Matrice Documents × Termes avec scores TF-IDF calculés manuellement
 - Moteur de recherche avec filtres (auteur, type, période) et tris (pertinence, date, auteur)
+- Mesure Okapi BM25 en complément du TF-IDF
+- Concordancier et statistiques textuelles
 - Similarité entre documents
 - Clustering (K-means), recommandations, analyse de fréquence, tendances temporelles, statistiques
+- Analyse comparative de deux sous-corpus (Reddit vs arXiv)
 - Export des résultats en CSV et JSON
 - Sauvegarde et rechargement du corpus (format TSV)
+- Interface web Streamlit
 
 ## Installation
 
@@ -38,26 +44,44 @@ pip install -r requirements.txt
 
 ## Utilisation
 
+Collecte et sauvegarde des données :
+
 ```bash
 cd moteur-recherche
 python src/main.py
 ```
 
-Exemple d'usage du moteur de recherche :
+Interface web (bonus) :
+
+```bash
+cd moteur-recherche
+streamlit run app.py
+```
+
+## Exemples
 
 ```python
-from src.Corpus import Corpus
+import sys
+sys.path.append("moteur-recherche/src")
+
+from Corpus import Corpus
+from SearchEngine import SearchEngine
 
 corpus = Corpus("Mon Corpus")
-moteur = corpus.search_engine
+corpus.load("moteur-recherche/data/corpus_objets.tsv")
+moteur = SearchEngine(corpus)
 
 # Recherche avec filtres et tri
-moteur.advanced_search("intelligence artificielle", filters={'author': 'Jean Dupont'}, sort_by='date')
+moteur.advanced_search("intelligence artificielle", filters={'type': 'Reddit'})
 
-# Clustering
+# Recherche avec Okapi BM25
+moteur.search_bm25("réseaux de neurones", top_k=5)
+
+# Analyse comparative de deux sous-corpus
+moteur.analyser_sous_corpus("Reddit", "arXiv")
+
+# Clustering et recommandations
 moteur.cluster_documents(n_clusters=5)
-
-# Recommandations
 moteur.get_document_recommendations(doc_id=1, top_k=5)
 ```
 

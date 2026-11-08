@@ -1,0 +1,10 @@
+numpy
+scipy
+pandas
+praw
+xmltodict
+matplotlib
+seaborn
+streamlit
+ipywidgets
+tqdm

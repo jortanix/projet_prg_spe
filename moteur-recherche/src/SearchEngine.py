@@ -178,6 +178,96 @@ class SearchEngine:
 
             print(f"Résultats exportés vers {filename}")
 
+    def _term_frequencies(self, doc_id):
+        """Retourne les fréquences brutes des termes d'un document."""
+        doc = self.corpus.documents[doc_id]
+        tokens = self.corpus.text_analyzer.clean_text(doc.texte)
+        return Counter(tokens)
+
+    def search_bm25(self, query: str, top_k: int = 5,
+                    k1: float = 1.5, b: float = 0.75) -> List[Tuple[int, float]]:
+        """Recherche fondée sur la mesure Okapi BM25.
+
+        k1 : saturation de la fréquence de terme, b : pondération de la longueur.
+        """
+        if not self.is_initialized or not self.corpus.documents:
+            return []
+
+        docs = list(self.corpus.documents.keys())
+        n_docs = len(docs)
+        longueurs = [len(self.corpus.text_analyzer.clean_text(
+            self.corpus.documents[i].texte)) for i in docs]
+        longueur_moyenne = sum(longueurs) / n_docs
+
+        doc_term_freq = {i: self._term_frequencies(i) for i in docs}
+
+        def document_frequency(terme):
+            return sum(1 for tf in doc_term_freq.values() if tf.get(terme, 0) > 0)
+
+        query_tokens = set(self.corpus.text_analyzer.clean_text(query))
+
+        scores = []
+        for i, doc_id in enumerate(docs):
+            score = 0.0
+            tf = doc_term_freq[doc_id]
+            for terme in query_tokens:
+                f = tf.get(terme, 0)
+                if f == 0:
+                    continue
+                df = document_frequency(terme)
+                idf = np.log(1 + (n_docs - df + 0.5) / (df + 0.5))
+                denom = f + k1 * (1 - b + b * longueurs[i] / longueur_moyenne)
+                score += idf * (f * (k1 + 1)) / denom
+            if score > 0:
+                scores.append((doc_id, score))
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:top_k]
+
+    def analyser_sous_corpus(self, groupe_a: str, groupe_b: str,
+                             top_n: int = 15) -> Dict[str, Any]:
+        """Compare deux sous-corpus (groupes par type de document, ex. Reddit/arXiv).
+
+        Chaque sous-corpus est traité comme un gros document et on compare
+        l'importance des mots (TF-IDF) d'un côté et de l'autre.
+        """
+        if not self.is_initialized or not self.corpus.documents:
+            return {}
+
+        def texte_groupe(groupe):
+            return " ".join(
+                doc.texte for doc in self.corpus.documents.values()
+                if doc.getType() == groupe
+            )
+
+        texte_a = texte_groupe(groupe_a)
+        texte_b = texte_groupe(groupe_b)
+
+        if not texte_a or not texte_b:
+            return {}
+
+        analyseur = self.corpus.text_analyzer
+        vocab_ab = analyseur.build_vocabulary([texte_a, texte_b])
+        scores_a = analyseur.compute_tf_idf([texte_a, texte_b], vocab_ab)[0]
+        scores_b = analyseur.compute_tf_idf([texte_a, texte_b], vocab_ab)[1]
+
+        def important(scores):
+            return sorted(
+                ((t, s) for t, s in scores.items() if s > 0),
+                key=lambda x: x[1], reverse=True,
+            )[:top_n]
+
+        mots_a = {t for t, _ in important(scores_a)}
+        mots_b = {t for t, _ in important(scores_b)}
+
+        return {
+            "mots_communs": sorted(mots_a & mots_b),
+            "mots_specifiques_a": sorted(mots_a - mots_b),
+            "mots_specifiques_b": sorted(mots_b - mots_a),
+            "top_a": important(scores_a),
+            "top_b": important(scores_b),
+        }
+
     def get_statistics(self) -> Dict[str, Any]:
         """Produit des statistiques globales sur le corpus."""
         if not self.is_initialized:
