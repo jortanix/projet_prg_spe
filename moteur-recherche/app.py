@@ -106,7 +106,7 @@ with onglet_recherche:
                     lignes.append(ligne)
 
             if lignes:
-                st.dataframe(pd.DataFrame(lignes), use_container_width=True)
+                st.dataframe(pd.DataFrame(lignes), width='stretch')
             else:
                 st.info("Aucun résultat ne correspond à la requête.")
 
@@ -122,7 +122,7 @@ with onglet_concor:
     if expression.strip():
         tableau = corpus.concorde(expression, contexte=contexte)
         if not tableau.empty:
-            st.dataframe(tableau, use_container_width=True)
+            st.dataframe(tableau, width='stretch')
             st.caption(f"{len(tableau)} occurrence(s) dans le corpus.")
         else:
             st.info("L'expression n'apparaît dans aucun document.")
@@ -144,7 +144,7 @@ with onglet_temps:
         if serie:
             df = pd.DataFrame(serie, columns=["année", "score"]).set_index("année")
             st.line_chart(df)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
         else:
             st.info("Le mot n'apparaît dans aucun document du corpus.")
     else:
