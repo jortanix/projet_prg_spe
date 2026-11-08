@@ -176,6 +176,12 @@ avec $IDF(t)=\log\left(1+\frac{N-df(t)+0.5}{df(t)+0.5}\right)$. Les paramètres 
 \subsubsection{Bonus : analyse comparative de sous-corpus}
 La méthode \texttt{analyser\_sous\_corpus} compare deux groupes de documents (par exemple \texttt{Reddit} et \texttt{arXiv}). Chaque groupe est agrégé en un pseudo-document puis un score TF-IDF local est calculé pour chaque terme. Les termes les plus importants de chaque groupe sont alors comparés : les mots communs mettent en évidence le vocabulaire partagé, tandis que les mots \emph{spécifiques} à chaque groupe révèlent les thématiques propres à chaque source. Appliquée au corpus (10 documents Reddit et 10 arXiv), l'analyse fait ressortir des termes spécifiques à arXiv (par ex. \emph{framework}, \emph{xai}, \emph{belief}, \emph{games}) et à Reddit (par ex. \emph{proof}, \emph{conjecture}, \emph{quantum}), le mot \emph{ai} étant commun aux deux sources.
 
+\subsubsection{Bonus : évolution temporelle d'un mot}
+La méthode \texttt{evolution\_temporelle} exploite le champ \texttt{date} pour découper le corpus par année, puis calcule l'importance moyenne d'un mot pour chaque année, soit en fréquence brute, soit en score TF-IDF moyen. La série obtenue est tracée sous forme de courbe dans l'interface, mettant en évidence l'apparition et la montée en importance d'un terme (par exemple \emph{ai}, quasi absent avant 2013 puis en forte progression).
+
+\subsubsection{Bonus : concordancier interactif et filtres}
+La fonction \texttt{concorde} de la Partie 2 est intégrée à l'interface web : pour une expression saisie, les passages où elle apparaît sont affichés dans un tableau avec leur contexte gauche/droit. Par ailleurs, la recherche (Bonus 1) supporte des filtres par source (\texttt{getType}), par auteur et par période, ainsi qu'un tri par pertinence, date ou auteur ; l'interface propose des graphiques (diagramme en barres des mots fréquents, courbe d'évolution), offrant ainsi un outil d'exploration visuelle (Bonus 7).
+
 \subsection{Problèmes rencontrés et solutions}
 
 \begin{itemize}
@@ -184,7 +190,8 @@ La méthode \texttt{analyser\_sous\_corpus} compare deux groupes de documents (p
     \item \textbf{Héritage et polymorphisme} : les deux types de documents partagent un comportement commun ; l'héritage de \texttt{Document} et la redéfinition de \texttt{getType()} évitent la duplication de code.
     \item \textbf{Unicité du corpus} : le patron \emph{singleton} garantit qu'une seule instance de corpus existe à travers l'application.
     \item \textbf{Caractères accentués} : la gestion de l'encodage UTF-8 (accents français) a nécessité une configuration adaptée de l'environnement Python et des fichiers de sauvegarde ;
-    \item \textbf{Mots vides multilingues} : le corpus étant majoritairement anglophone, la liste de mots vides a dû être complétée par les \emph{stopwords} anglais afin d'éviter que des termes outils (\emph{the}, \emph{and}, \emph{of}\ldots) ne polluent le vocabulaire et l'analyse comparative.
+    \item \textbf{Mots vides multilingues} : le corpus étant majoritairement anglophone, la liste de mots vides a dû être complétée par les \emph{stopwords} anglais afin d'éviter que des termes outils (\emph{the}, \emph{and}, \emph{of}\ldots) ne polluent le vocabulaire et l'analyse comparative ;
+    \item \textbf{Reconstruction après rechargement} : la matrice Documents $\times$ Termes, non conservée dans le fichier de sauvegarde, est recalculée à chaque \texttt{load()} à partir des textes, afin que la recherche, la similarité et les analyses restent opérationnelles sur un corpus rechargé.
 \end{itemize}
 
 \subsection{Exemple d'utilisation}
@@ -231,9 +238,13 @@ Les tests globaux vérifient l'intégration complète du système, c'est-à-dire
 
 Les fonctionnalités avancées de la partie 3 (recherche filtrée, clustering, recommandations, statistiques, export) ainsi que plusieurs bonus sont implémentés et intégrés au moteur :
 \begin{itemize}
-    \item \textbf{Interface web} : une interface \texttt{Streamlit} (\texttt{app.py}) permet d'interroger le corpus sans écrire de code, avec le choix de la mesure de score (TF-IDF ou BM25), un filtre par source et l'affichage des statistiques ;
-    \item \textbf{Okapi BM25} : mesure de score alternative au TF-IDF pour affiner le classement des résultats ;
-    \item \textbf{Analyse comparative} : comparaison des vocabulaires de deux sous-corpus (Reddit vs arXiv).
+    \item \textbf{Bonus 2 -- Interface web} : une interface \texttt{Streamlit} (\texttt{app.py}), organisée en onglets, permet d'interroger le corpus sans écrire de code ;
+    \item \textbf{Bonus 6 -- Okapi BM25} : mesure de score alternative au TF-IDF pour affiner le classement des résultats ;
+    \item \textbf{Bonus 4 -- Analyse comparative} : comparaison des vocabulaires de deux sous-corpus (Reddit vs arXiv) ;
+    \item \textbf{Bonus 5 -- Évolution temporelle} : suivi de l'importance d'un mot au fil des années (fréquence ou TF-IDF) avec courbe ;
+    \item \textbf{Bonus 8 -- Concordancier} : affichage des passages d'une expression avec leur contexte gauche/droit ;
+    \item \textbf{Bonus 1 -- Filtres de recherche} : filtre par source, auteur et période, avec tri ;
+    \item \textbf{Bonus 7 -- Visualisations} : diagramme en barres des mots fréquents et courbes d'évolution.
 \end{itemize}
 
 \subsection{Perspectives d'amélioration}
