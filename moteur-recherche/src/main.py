@@ -21,19 +21,13 @@ def nettoyer_texte(texte):
     return " ".join(texte.replace("\n", " ").split())
 
 
-# ==================================================
-# Initialisation des collections
-# ==================================================
-
+# Collections globales
 documents = {}
 authors = {}
 identifiant = 1
 
 
-# ==================================================
 # Acquisition Reddit
-# ==================================================
-
 reddit = praw.Reddit(
     client_id="m4W3R1MLvrnNI9LTbG35Eg",
     client_secret="ynb_xt5pKo4IFhssuuqr5ENTMu5Q4g",
@@ -86,10 +80,7 @@ for post in posts:
 print(f"\nNombre de posts Reddit collectés : {len(textes_reddit)}")
 
 
-# ==================================================
 # Acquisition arXiv
-# ==================================================
-
 parametres = {
     "search_query": "all:artificial AND all:intelligence",
     "start": 0,
@@ -189,10 +180,7 @@ except urllib.error.URLError as erreur:
     print(f"\nErreur réseau lors de l'appel à arXiv : {erreur.reason}")
 
 
-# ==================================================
 # Vérifications corpus et auteurs
-# ==================================================
-
 corpus = Corpus("Artificial Intelligence")
 
 for document in documents.values():
@@ -266,10 +254,7 @@ if authors:
     print(f"Nombre de documents : {premier_auteur.nbdocs}")
     print(f"Taille moyenne : {taille_moyenne:.2f} caractères")
 
-# ==================================================================
 # Tests de la partie 2
-# ==================================================================
-
 print("\n" + "="*50)
 print("TESTS DE LA PARTIE 2")
 print("="*50)

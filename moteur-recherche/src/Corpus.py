@@ -27,9 +27,19 @@ class Corpus:
         self.text_analyzer = TextAnalyzer()
         self.vocabulary = {}
         self.term_document_matrix = None
-        self.search_engine = None  # Référence au moteur de recherche
+        self.search_engine = None
         self._initialise = True
-    
+
+    def reset(self, nom="Mon corpus"):
+        """Réinitialise l'état du corpus (utile pour les tests et le rechargement)."""
+        self.documents = {}
+        self.idDocument = 1
+        self.authors = {}
+        self.vocabulary = {}
+        self.term_document_matrix = None
+        self.search_engine = None
+        self.nom = nom
+
     def initialize_search_engine(self):
         """Initialise le moteur de recherche associé"""
         try:
@@ -52,11 +62,10 @@ class Corpus:
         self.authors[auteur].add(document_id, document)
 
         self.idDocument += 1
-        
-        # Mettre à jour le vocabulaire avec le nouveau document
+
         self._update_vocabulary(document.texte)
-        
-        # Initialiser le moteur de recherche si ce n'est pas déjà fait
+        self._build_term_document_matrix()
+
         if self.search_engine is None:
             self.initialize_search_engine()
 
@@ -80,14 +89,11 @@ class Corpus:
             print(f"[{document.getType()}] {document}")
 
     def _update_vocabulary(self, text):
-        """Met à jour le vocabulaire avec un nouveau texte"""
         if not self.vocabulary:
-            # Initialisation du vocabulaire avec tous les documents
             all_texts = [doc.texte for doc in self.documents.values()]
             all_texts.append(text)
             self.vocabulary = self.text_analyzer.build_vocabulary(all_texts)
         else:
-            # Mise à jour du vocabulaire avec le nouveau texte
             new_tokens = self.text_analyzer.clean_text(text)
             for token in new_tokens:
                 if token not in self.vocabulary:
@@ -96,34 +102,26 @@ class Corpus:
                     self.vocabulary[token] += 1
 
     def _build_term_document_matrix(self):
-        """Construit la matrice Documents × Termes"""
         if not self.documents:
             return
-            
-        # Récupérer tous les textes des documents
+
         texts = [doc.texte for doc in self.documents.values()]
-        
-        # Calculer les scores TF-IDF pour tous les documents
         tfidf_scores = self.text_analyzer.compute_tf_idf(texts, self.vocabulary)
-        
-        # Créer la matrice sparse (Documents × Termes)
+
         num_docs = len(tfidf_scores)
         num_terms = len(self.vocabulary)
-        
-        # Initialiser les matrices pour la matrice creuse
+
         rows = []
         cols = []
         data = []
-        
-        # Remplir la matrice avec les scores TF-IDF
+
         for i, doc_tfidf in enumerate(tfidf_scores):
             for j, term in enumerate(sorted(self.vocabulary.keys())):
                 if term in doc_tfidf and doc_tfidf[term] > 0:
                     rows.append(i)
                     cols.append(j)
                     data.append(doc_tfidf[term])
-        
-        # Créer la matrice creuse
+
         self.term_document_matrix = sparse.coo_matrix(
             (data, (rows, cols)), 
             shape=(num_docs, num_terms)
@@ -140,34 +138,26 @@ class Corpus:
         Returns:
             List[Tuple[int, float]]: Liste des tuples (id_document, score)
         """
-        if not self.term_document_matrix or not self.vocabulary:
+        if self.term_document_matrix is None or not self.vocabulary:
             return []
-            
-        # Nettoyer la requête
+
         query_tokens = self.text_analyzer.clean_text(query)
-        
-        # Calculer le vecteur de requête (TF-IDF)
+
+        # Vecteur de requête : 1 si le terme est présent, sinon 0
         query_vector = np.zeros(len(self.vocabulary))
         for i, term in enumerate(sorted(self.vocabulary.keys())):
             if term in query_tokens:
-                # Pour simplifier, on attribue un score de 1 au terme trouvé
-                # Dans une implémentation plus avancée, on pourrait calculer le TF-IDF
                 query_vector[i] = 1.0
-        
-        # Convertir en vecteur sparse
+
         query_sparse = sparse.csr_matrix(query_vector)
-        
-        # Calculer les scores de similarité (produit scalaire)
-        similarities = self.term_document_matrix.dot(query_sparse.T).A1
-        
-        # Trouver les meilleurs résultats
+
+        # shape (nb_docs, 1), converti en vecteur 1D
+        similarities = self.term_document_matrix.dot(query_sparse.T).toarray().ravel()
+
         top_indices = np.argsort(similarities)[::-1][:top_k]
-        
-        # Retourner les résultats avec leurs scores
-        results = [(list(self.documents.keys())[i], similarities[i]) 
-                  for i in top_indices if similarities[i] > 0]
-        
-        return results
+
+        return [(list(self.documents.keys())[i], similarities[i])
+                for i in top_indices if similarities[i] > 0]
 
     def get_document_similarity(self, doc_id1: int, doc_id2: int):
         """
@@ -180,33 +170,27 @@ class Corpus:
         Returns:
             float: Score de similarité entre 0 et 1
         """
-        if not self.term_document_matrix:
+        if self.term_document_matrix is None:
             return 0.0
-            
+
         if doc_id1 not in self.documents or doc_id2 not in self.documents:
             return 0.0
-            
-        # Récupérer les indices des documents
+
         idx1 = list(self.documents.keys()).index(doc_id1)
         idx2 = list(self.documents.keys()).index(doc_id2)
-        
-        # Calculer la similarité cosinus
-        doc1_vector = self.term_document_matrix[idx1]
-        doc2_vector = self.term_document_matrix[idx2]
-        
-        # Produit scalaire
-        dot_product = doc1_vector.dot(doc2_vector.T).A1[0]
-        
-        # Normes des vecteurs
-        norm1 = np.linalg.norm(doc1_vector.A1)
-        norm2 = np.linalg.norm(doc2_vector.A1)
-        
-        # Similarité cosinus
+
+        doc1_vector = self.term_document_matrix[idx1].toarray().ravel()
+        doc2_vector = self.term_document_matrix[idx2].toarray().ravel()
+
+        dot_product = float(np.dot(doc1_vector, doc2_vector))
+
+        norm1 = np.linalg.norm(doc1_vector)
+        norm2 = np.linalg.norm(doc2_vector)
+
         if norm1 == 0 or norm2 == 0:
             return 0.0
-            
-        similarity = dot_product / (norm1 * norm2)
-        return similarity
+
+        return dot_product / (norm1 * norm2)
 
     def get_document_terms(self, doc_id: int, top_n: int = 10):
         """
@@ -219,27 +203,21 @@ class Corpus:
         Returns:
             List[Tuple[str, float]]: Liste des termes avec leurs scores
         """
-        if not self.term_document_matrix:
+        if self.term_document_matrix is None:
             return []
-            
+
         if doc_id not in self.documents:
             return []
-            
-        # Récupérer l'indice du document
+
         idx = list(self.documents.keys()).index(doc_id)
-        
-        # Récupérer le vecteur du document
         doc_vector = self.term_document_matrix[idx]
-        
-        # Trouver les termes les plus importants
+
         terms_scores = []
         for i, term in enumerate(sorted(self.vocabulary.keys())):
             if doc_vector[0, i] > 0:
                 terms_scores.append((term, doc_vector[0, i]))
-                
-        # Trier par score décroissant
+
         terms_scores.sort(key=lambda x: x[1], reverse=True)
-        
         return terms_scores[:top_n]
 
     def __repr__(self):

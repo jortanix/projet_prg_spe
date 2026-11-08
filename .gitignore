@@ -1,3 +1,6 @@
 .venv/
 __pycache__/
 .idea/
+*.pyc
+test_results.csv
+test_results.json
