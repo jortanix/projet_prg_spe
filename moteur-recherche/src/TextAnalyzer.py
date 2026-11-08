@@ -9,7 +9,7 @@ class TextAnalyzer:
     Permet l'extraction de termes, le nettoyage et la construction du vocabulaire.
     """
     
-    # Stopwords français (à compléter selon les besoins)
+    # Stopwords français
     STOPWORDS_FR = {
         'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'dans', 'sur', 'sous',
         'avec', 'sans', 'pour', 'contre', 'entre', 'par', 'en', 'au', 'aux', 'à',
@@ -22,6 +22,26 @@ class TextAnalyzer:
         'fus', 'fut', 'fûmes', 'fûtes', 'furent', 'sois', 'soit', 'soyons', 'soyez',
         'soient', 'fusse', 'fusses', 'fût', 'fussions', 'fussiez', 'fussent'
     }
+
+    # Stopwords anglais (le corpus Reddit/arXiv est essentiellement anglophone)
+    STOPWORDS_EN = {
+        'the', 'a', 'an', 'and', 'or', 'but', 'if', 'of', 'to', 'in', 'on', 'for',
+        'with', 'at', 'by', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been',
+        'being', 'this', 'that', 'these', 'those', 'it', 'its', 'i', 'you', 'he',
+        'she', 'we', 'they', 'them', 'their', 'his', 'her', 'my', 'your', 'our',
+        'me', 'him', 'us', 'not', 'no', 'so', 'do', 'does', 'did', 'can', 'could',
+        'will', 'would', 'shall', 'should', 'may', 'might', 'must', 'have', 'has',
+        'had', 'there', 'here', 'what', 'which', 'who', 'whom', 'whose', 'when',
+        'where', 'why', 'how', 'than', 'then', 'into', 'about', 'all', 'any',
+        'more', 'most', 'some', 'such', 'only', 'own', 'same', 'too', 'very',
+        'just', 'also', 'out', 'up', 'down', 'over', 'under', 'again', 'further',
+        'once', 'during', 'before', 'after', 'above', 'below', 'between', 'per',
+        'via', 'against', 'because', 'other', 'another', 'each', 'few', 'many',
+        'several', 'both', 'off', 'toward', 'upon', 'using', 'used', 'use',
+        'new'
+    }
+
+    STOPWORDS = STOPWORDS_FR | STOPWORDS_EN
     
     def __init__(self):
         pass
@@ -42,7 +62,7 @@ class TextAnalyzer:
         for token in tokens:
             if remove_numbers and token.isdigit():
                 continue
-            if remove_stopwords and token in self.STOPWORDS_FR:
+            if remove_stopwords and token in self.STOPWORDS:
                 continue
             if re.match(r'^[a-zA-ZÀ-ÿ]+$', token):
                 cleaned_tokens.append(token)
