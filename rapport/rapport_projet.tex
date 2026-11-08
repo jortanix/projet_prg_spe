@@ -104,32 +104,34 @@ Chaque document appartient à un \textbf{auteur}, et l'ensemble des documents et
 
 \begin{figure}[htbp]
 \centering
+\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
-    node distance=2cm and 3cm,
-    every node/.style={align=center, minimum width=2.5cm},
+    node distance=1.6cm and 2.2cm,
+    every node/.style={align=center, minimum width=2.4cm},
     block/.style={rectangle, draw, fill=blue!5, thick, rounded corners},
     inheritance/.style={draw, -latex}
 ]
 
 \node[block] (Document) {Document\\ \texttt{titre, auteur, date, url, texte}};
 
-\node[block] (RedditDocument) [below left=of Document] {RedditDocument\\ \texttt{nb\_commentaires}};
+\node[block] (RedditDocument) [below left=1.2cm and 2.5cm of Document] {RedditDocument\\ \texttt{nb\_commentaires}};
 \draw[inheritance] (RedditDocument) -- (Document);
 
-\node[block] (ArxivDocument) [below right=of Document] {ArxivDocument\\ \texttt{co\_auteurs}};
+\node[block] (ArxivDocument) [below right=1.2cm and 2.5cm of Document] {ArxivDocument\\ \texttt{co\_auteurs}};
 \draw[inheritance] (ArxivDocument) -- (Document);
 
-\node[block] (Author) [below=of Document] {Author\\ \texttt{name, nbdocs, production}};
+\node[block] (Author) [below=1.2cm of Document] {Author\\ \texttt{name, nbdocs, production}};
 
-\node[block] (Corpus) [right=5cm of Document] {Corpus\\ \texttt{nom, documents, authors, vocabulary, term\_document\_matrix}};
+\node[block] (Corpus) [below=1.2cm of Author] {Corpus\\ \texttt{nom, documents, authors}\\ \texttt{vocabulary, matrice}};
 
-\node[block] (SearchEngine) [right=5cm of Corpus] {SearchEngine\\ \texttt{corpus, is\_initialized}};
+\node[block] (SearchEngine) [right=1.6cm of Corpus] {SearchEngine\\ \texttt{corpus, is\_initialized}};
 
 \draw[inheritance] (Author) -- (Corpus);
-\draw[inheritance] (Document) -- (Corpus);
+\draw[inheritance, dashed] (Document) -- (Corpus);
 \draw[inheritance] (Corpus) -- (SearchEngine);
 
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{Diagramme de classes simplifié du projet}
 \end{figure}
 
@@ -142,7 +144,7 @@ La classe \texttt{Corpus} centralise la recherche, la construction de la matrice
 Le projet a été réalisé de manière individuelle. Le travail a été décomposé en trois étapes :
 
 \begin{itemize}
-    \item \textbf{Partie 1 -- Structure} : création des classes \texttt{Document}, \texttt{RedditDocument}, \texttt{ArxivDocument}, \texttt{Author} et \texttt{Corpus}, fabrique de documents, acquisition des données et persistance (sauvegarde en TSV) ;
+    \item \textbf{Partie 1 -- Structure} : création des classes \texttt{Document}, \texttt{Reddit\-Document}, \texttt{Arxiv\-Document}, \texttt{Author} et \texttt{Corpus}, fabrique de documents, acquisition des données et persistance (sauvegarde en TSV) ;
     \item \textbf{Partie 2 -- Recherche} : analyse textuelle (tokenization, suppression des mots vides), construction du vocabulaire et de la matrice Documents $\times$ Termes, calcul des scores TF-IDF, recherche, similarité et concordancier ;
     \item \textbf{Partie 3 -- Avancé} : moteur de recherche à filtres et tris, clustering, recommandations, analyses, statistiques, export CSV/JSON, interface web Streamlit, et fonctions bonus (Okapi BM25, analyse comparative de sous-corpus).
 \end{itemize}
