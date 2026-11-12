@@ -31,7 +31,11 @@ class SearchEngine:
             return []
 
         # On interroge plus de résultats que nécessaire pour pouvoir filtrer ensuite
-        results = self.corpus.search(query, top_k=top_k * 2)
+        try:
+            results = self.corpus.search(query, top_k=top_k * 2)
+        except Exception as e:
+            print(f"Erreur lors de la recherche: {e}")
+            return []
 
         if filters:
             filtered_results = []
@@ -41,10 +45,28 @@ class SearchEngine:
                 match = True
                 if 'author' in filters and filters['author'] not in doc.auteur:
                     match = False
-                if 'date_start' in filters and doc.date < filters['date_start']:
-                    match = False
-                if 'date_end' in filters and doc.date > filters['date_end']:
-                    match = False
+                if 'date_start' in filters:
+                    # Defensive check for date existence and comparison
+                    try:
+                        if not hasattr(doc, 'date') or doc.date is None:
+                            match = False
+                        else:
+                            if doc.date < filters['date_start']:
+                                match = False
+                    except (TypeError, AttributeError):
+                        # Handle cases where date comparison fails or date is invalid
+                        match = False
+                if 'date_end' in filters:
+                    # Defensive check for date existence and comparison
+                    try:
+                        if not hasattr(doc, 'date') or doc.date is None:
+                            match = False
+                        else:
+                            if doc.date > filters['date_end']:
+                                match = False
+                    except (TypeError, AttributeError):
+                        # Handle cases where date comparison fails or date is invalid
+                        match = False
                 if 'type' in filters and doc.getType() != filters['type']:
                     match = False
 
@@ -54,7 +76,17 @@ class SearchEngine:
             results = filtered_results
 
         if sort_by == 'date':
-            results.sort(key=lambda x: self.corpus.documents[x[0]].date, reverse=True)
+            # Defensive sorting with date validation
+            def get_date_key(doc_id):
+                doc = self.corpus.documents[doc_id]
+                if hasattr(doc, 'date') and doc.date is not None:
+                    return doc.date
+                else:
+                    # Return a very early date as fallback to put problematic docs at the beginning
+                    import datetime
+                    return datetime.datetime.min
+            
+            results.sort(key=lambda x: get_date_key(x[0]), reverse=True)
         elif sort_by == 'author':
             results.sort(key=lambda x: self.corpus.documents[x[0]].auteur)
         else:
@@ -63,10 +95,20 @@ class SearchEngine:
         final_results = []
         for doc_id, score in results[:top_k]:
             doc = self.corpus.documents[doc_id]
+            # Defensive handling of date in metadata
+            doc_date = getattr(doc, 'date', None)
+            if doc_date is not None:
+                try:
+                    date_str = doc_date.isoformat() if hasattr(doc_date, 'isoformat') else str(doc_date)
+                except:
+                    date_str = str(doc_date)
+            else:
+                date_str = "Date non disponible"
+            
             metadata = {
                 'titre': doc.titre,
                 'auteur': doc.auteur,
-                'date': doc.date,
+                'date': doc_date,
                 'url': doc.url,
                 'type': doc.getType(),
                 'score': score
@@ -130,7 +172,13 @@ class SearchEngine:
 
         trends = {}
         for doc_id, doc in self.corpus.documents.items():
-            year = doc.date.strftime("%Y")
+            # Defensive handling of date
+            if not hasattr(doc, 'date') or doc.date is None:
+                continue
+            try:
+                year = doc.date.strftime("%Y")
+            except:
+                continue
             if year not in trends:
                 trends[year] = Counter()
 
@@ -158,7 +206,14 @@ class SearchEngine:
         # Regroupement des couples (doc_id, document) par année
         par_annee = {}
         for doc_id, doc in self.corpus.documents.items():
-            par_annee.setdefault(doc.date.year, []).append((doc_id, doc))
+            # Defensive handling of date
+            if not hasattr(doc, 'date') or doc.date is None:
+                continue
+            try:
+                annee = doc.date.year
+            except:
+                continue
+            par_annee.setdefault(annee, []).append((doc_id, doc))
 
         resultat = []
         for annee in sorted(par_annee):
@@ -235,36 +290,40 @@ class SearchEngine:
         if not self.is_initialized or not self.corpus.documents:
             return []
 
-        docs = list(self.corpus.documents.keys())
-        n_docs = len(docs)
-        longueurs = [len(self.corpus.text_analyzer.clean_text(
-            self.corpus.documents[i].texte)) for i in docs]
-        longueur_moyenne = sum(longueurs) / n_docs
+        try:
+            docs = list(self.corpus.documents.keys())
+            n_docs = len(docs)
+            longueurs = [len(self.corpus.text_analyzer.clean_text(
+                self.corpus.documents[i].texte)) for i in docs]
+            longueur_moyenne = sum(longueurs) / n_docs
 
-        doc_term_freq = {i: self._term_frequencies(i) for i in docs}
+            doc_term_freq = {i: self._term_frequencies(i) for i in docs}
 
-        def document_frequency(terme):
-            return sum(1 for tf in doc_term_freq.values() if tf.get(terme, 0) > 0)
+            def document_frequency(terme):
+                return sum(1 for tf in doc_term_freq.values() if tf.get(terme, 0) > 0)
 
-        query_tokens = set(self.corpus.text_analyzer.clean_text(query))
+            query_tokens = set(self.corpus.text_analyzer.clean_text(query))
 
-        scores = []
-        for i, doc_id in enumerate(docs):
-            score = 0.0
-            tf = doc_term_freq[doc_id]
-            for terme in query_tokens:
-                f = tf.get(terme, 0)
-                if f == 0:
-                    continue
-                df = document_frequency(terme)
-                idf = np.log(1 + (n_docs - df + 0.5) / (df + 0.5))
-                denom = f + k1 * (1 - b + b * longueurs[i] / longueur_moyenne)
-                score += idf * (f * (k1 + 1)) / denom
-            if score > 0:
-                scores.append((doc_id, score))
+            scores = []
+            for i, doc_id in enumerate(docs):
+                score = 0.0
+                tf = doc_term_freq[doc_id]
+                for terme in query_tokens:
+                    f = tf.get(terme, 0)
+                    if f == 0:
+                        continue
+                    df = document_frequency(terme)
+                    idf = np.log(1 + (n_docs - df + 0.5) / (df + 0.5))
+                    denom = f + k1 * (1 - b + b * longueurs[i] / longueur_moyenne)
+                    score += idf * (f * (k1 + 1)) / denom
+                if score > 0:
+                    scores.append((doc_id, score))
 
-        scores.sort(key=lambda x: x[1], reverse=True)
-        return scores[:top_k]
+            scores.sort(key=lambda x: x[1], reverse=True)
+            return scores[:top_k]
+        except Exception as e:
+            print(f"Erreur lors de la recherche BM25: {e}")
+            return []
 
     def analyser_sous_corpus(self, groupe_a: str, groupe_b: str,
                              top_n: int = 15) -> Dict[str, Any]:
