@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from collections import Counter
 import seaborn as sns
 from typing import List, Tuple, Dict, Any
-import datetime
 
 class SearchEngine:
     """
@@ -41,7 +40,16 @@ class SearchEngine:
         if filters:
             filtered_results = []
             for doc_id, score in results:
-                doc = self.corpus.documents[doc_id]
+                try:
+                    # Defensive check for doc_id validity
+                    if doc_id not in self.corpus.documents:
+                        continue
+                        
+                    doc = self.corpus.documents[doc_id]
+                except Exception as e:
+                    # Skip invalid documents
+                    print(f"Erreur lors de l'accès au document {doc_id}: {e}")
+                    continue
 
                 match = True
                 if 'author' in filters and filters['author'] not in doc.auteur:
@@ -99,19 +107,27 @@ class SearchEngine:
         if sort_by == 'date':
             # Defensive sorting with date validation
             def get_date_key(doc_id):
-                doc = self.corpus.documents[doc_id]
-                if hasattr(doc, 'date') and doc.date is not None:
-                    # Handle timezone naive vs aware datetime
-                    date_val = doc.date
-                    if hasattr(date_val, 'tzinfo') and date_val.tzinfo is not None:
-                        date_val = date_val.replace(tzinfo=None)
-                    return date_val
-                else:
-                    # Return a very early date as fallback to put problematic docs at the beginning
-                    import datetime
+                try:
+                    doc = self.corpus.documents[doc_id]
+                    if hasattr(doc, 'date') and doc.date is not None:
+                        # Handle timezone naive vs aware datetime
+                        date_val = doc.date
+                        if hasattr(date_val, 'tzinfo') and date_val.tzinfo is not None:
+                            date_val = date_val.replace(tzinfo=None)
+                        return date_val
+                    else:
+                        # Return a very early date as fallback to put problematic docs at the beginning
+                        return datetime.datetime.min
+                except Exception:
+                    # Return a very early date as fallback for invalid documents
                     return datetime.datetime.min
             
-            results.sort(key=lambda x: get_date_key(x[0]), reverse=True)
+            try:
+                results.sort(key=lambda x: get_date_key(x[0]), reverse=True)
+            except Exception as e:
+                print(f"Erreur lors du tri par date: {e}")
+                # Fallback to sorting by score if date sorting fails
+                results.sort(key=lambda x: x[1], reverse=True)
         elif sort_by == 'author':
             results.sort(key=lambda x: self.corpus.documents[x[0]].auteur)
         else:
