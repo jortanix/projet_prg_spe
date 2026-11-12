@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-"""Fabrique de documents (patron Factory)."""
-
 from Document import RedditDocument, ArxivDocument
 
 

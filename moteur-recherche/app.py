@@ -32,7 +32,7 @@ corpus = charger_corpus()
 moteur = SearchEngine(corpus)
 
 st.title("Moteur de recherche")
-st.markdown(f"Corpus : **{corpus.nom}** — {len(corpus.documents)} documents, "
+st.markdown(f"Corpus : **{corpus.nom}** -{len(corpus.documents)} documents, "
             f"{len({d.auteur for d in corpus.documents.values()})} auteurs.")
 
 types_dispo = sorted({d.getType() for d in corpus.documents.values()})
