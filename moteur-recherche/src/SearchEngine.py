@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from collections import Counter
 import seaborn as sns
 from typing import List, Tuple, Dict, Any
+import datetime
 
 class SearchEngine:
     """
@@ -51,7 +52,17 @@ class SearchEngine:
                         if not hasattr(doc, 'date') or doc.date is None:
                             match = False
                         else:
-                            if doc.date < filters['date_start']:
+                            # Handle timezone naive vs aware datetime comparison
+                            doc_date = doc.date
+                            filter_date = filters['date_start']
+                            
+                            # Convert both to naive if needed to avoid timezone comparison errors
+                            if hasattr(doc_date, 'tzinfo') and doc_date.tzinfo is not None:
+                                doc_date = doc_date.replace(tzinfo=None)
+                            if hasattr(filter_date, 'tzinfo') and filter_date.tzinfo is not None:
+                                filter_date = filter_date.replace(tzinfo=None)
+                                
+                            if doc_date < filter_date:
                                 match = False
                     except (TypeError, AttributeError):
                         # Handle cases where date comparison fails or date is invalid
@@ -62,7 +73,17 @@ class SearchEngine:
                         if not hasattr(doc, 'date') or doc.date is None:
                             match = False
                         else:
-                            if doc.date > filters['date_end']:
+                            # Handle timezone naive vs aware datetime comparison
+                            doc_date = doc.date
+                            filter_date = filters['date_end']
+                            
+                            # Convert both to naive if needed to avoid timezone comparison errors
+                            if hasattr(doc_date, 'tzinfo') and doc_date.tzinfo is not None:
+                                doc_date = doc_date.replace(tzinfo=None)
+                            if hasattr(filter_date, 'tzinfo') and filter_date.tzinfo is not None:
+                                filter_date = filter_date.replace(tzinfo=None)
+                                
+                            if doc_date > filter_date:
                                 match = False
                     except (TypeError, AttributeError):
                         # Handle cases where date comparison fails or date is invalid
@@ -80,7 +101,11 @@ class SearchEngine:
             def get_date_key(doc_id):
                 doc = self.corpus.documents[doc_id]
                 if hasattr(doc, 'date') and doc.date is not None:
-                    return doc.date
+                    # Handle timezone naive vs aware datetime
+                    date_val = doc.date
+                    if hasattr(date_val, 'tzinfo') and date_val.tzinfo is not None:
+                        date_val = date_val.replace(tzinfo=None)
+                    return date_val
                 else:
                     # Return a very early date as fallback to put problematic docs at the beginning
                     import datetime
@@ -99,7 +124,11 @@ class SearchEngine:
             doc_date = getattr(doc, 'date', None)
             if doc_date is not None:
                 try:
-                    date_str = doc_date.isoformat() if hasattr(doc_date, 'isoformat') else str(doc_date)
+                    # Handle timezone naive vs aware datetime
+                    date_val = doc_date
+                    if hasattr(date_val, 'tzinfo') and date_val.tzinfo is not None:
+                        date_val = date_val.replace(tzinfo=None)
+                    date_str = date_val.isoformat() if hasattr(date_val, 'isoformat') else str(date_val)
                 except:
                     date_str = str(doc_date)
             else:
@@ -176,7 +205,11 @@ class SearchEngine:
             if not hasattr(doc, 'date') or doc.date is None:
                 continue
             try:
-                year = doc.date.strftime("%Y")
+                # Handle timezone naive vs aware datetime
+                doc_date = doc.date
+                if hasattr(doc_date, 'tzinfo') and doc_date.tzinfo is not None:
+                    doc_date = doc_date.replace(tzinfo=None)
+                year = doc_date.strftime("%Y")
             except:
                 continue
             if year not in trends:
@@ -210,7 +243,11 @@ class SearchEngine:
             if not hasattr(doc, 'date') or doc.date is None:
                 continue
             try:
-                annee = doc.date.year
+                # Handle timezone naive vs aware datetime
+                doc_date = doc.date
+                if hasattr(doc_date, 'tzinfo') and doc_date.tzinfo is not None:
+                    doc_date = doc_date.replace(tzinfo=None)
+                annee = doc_date.year
             except:
                 continue
             par_annee.setdefault(annee, []).append((doc_id, doc))
