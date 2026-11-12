@@ -73,7 +73,7 @@ with onglet_recherche:
         d_debut = c4.date_input("Date début", date_min.date())
         d_fin = c5.date_input("Date fin", date_max.date())
 
-    mode = st.radio("Mesure de score", ["TF-IDF (cosinus)", "Okapi BM25"],
+    mode = st.radio("Mesure de score", ["TF-IDF (produit scalaire)", "Okapi BM25"],
                     horizontal=True)
 
     if st.button("Rechercher"):
